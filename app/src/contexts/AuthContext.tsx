@@ -55,9 +55,36 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } = supabase.auth.onAuthStateChange(async (event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
-      
+
       if (session?.user) {
-        await loadUserProfile(session.user.id);
+        // Try to load existing profile first
+        const { data: existingProfile } = await getUserProfile(session.user.id);
+
+        if (existingProfile) {
+          setUserProfile(existingProfile);
+          setLoading(false);
+        } else if (session.user.email_confirmed_at) {
+          // If user is confirmed but no profile exists, they might be signing in for the first time
+          // after email verification - create a basic profile
+          const basicProfile = {
+            id: session.user.id,
+            email: session.user.email!,
+            name: session.user.user_metadata?.name || 'Food Enthusiast',
+            bio: 'Food enthusiast ready to explore!',
+            food_tags: [],
+            dietary_restrictions: [],
+            preferred_cuisines: [],
+          };
+
+          const { data: newProfile } = await createUserProfile(session.user.id, basicProfile);
+          if (newProfile) {
+            setUserProfile(newProfile);
+          }
+          setLoading(false);
+        } else {
+          // User exists but not confirmed - set loading false but no profile
+          setLoading(false);
+        }
       } else {
         setUserProfile(null);
         setLoading(false);
@@ -103,36 +130,32 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       if (data.user) {
         setUser(data.user);
-        
-        // Create user profile in database
-        const profileData = {
-          id: data.user.id,
-          email: data.user.email!,
-          name: userData.name || '',
-          age: userData.age,
-          avatar: userData.avatar,
-          bio: userData.bio,
-          food_tags: userData.food_tags || [],
-          dietary_restrictions: userData.dietary_restrictions || [],
-          preferred_cuisines: userData.preferred_cuisines || [],
-          location: userData.location,
-        };
 
-        const { data: profile, error: profileError } = await supabase
-          .from('users')
-          .insert([profileData])
-          .select()
-          .single();
+        // Only create profile if the user is confirmed (not pending email verification)
+        if (data.user.email_confirmed_at) {
+          // Create user profile in database
+          const profileData = {
+            id: data.user.id,
+            email: data.user.email!,
+            name: userData.name || '',
+            age: userData.age,
+            avatar: userData.avatar,
+            bio: userData.bio,
+            food_tags: userData.food_tags || [],
+            dietary_restrictions: userData.dietary_restrictions || [],
+            preferred_cuisines: userData.preferred_cuisines || [],
+            location: userData.location,
+          };
 
-        if (profileError) {
-          console.error('Profile creation error:', profileError);
-          const errorMessage = 'Failed to create user profile';
-          setError(errorMessage);
-          return { success: false, error: errorMessage };
-        }
+          const { data: profile, error: profileError } = await createUserProfile(data.user.id, profileData);
 
-        if (profile) {
-          setUserProfile(profile);
+          if (profileError) {
+            console.error('Profile creation error:', profileError);
+            // Don't fail the whole signup if profile creation fails
+            console.log('Profile will be created when user confirms email');
+          } else if (profile) {
+            setUserProfile(profile);
+          }
         }
       }
 
@@ -230,10 +253,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const clearError = () => {
-     setError(null);
-   };
- 
-   const value: AuthContextType = {
+    setError(null);
+  };
+
+  const value: AuthContextType = {
+    session,
     user,
     userProfile,
     loading,

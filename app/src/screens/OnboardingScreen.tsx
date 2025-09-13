@@ -39,6 +39,11 @@ const OnboardingScreen: React.FC = () => {
         return;
       }
 
+      if (password.length < 6) {
+        Alert.alert('Error', 'Password must be at least 6 characters long');
+        return;
+      }
+
       const { success, error } = await signUp(email, password, {
         name: name.trim(),
         age: parseInt(age),

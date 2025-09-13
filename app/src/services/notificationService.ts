@@ -258,8 +258,12 @@ export const initializeNotifications = () => {
     const responseListener = Notifications.addNotificationResponseReceivedListener(handleNotificationResponse);
     
     return () => {
-      Notifications.removeNotificationSubscription(notificationListener);
-      Notifications.removeNotificationSubscription(responseListener);
+      if (notificationListener) {
+        notificationListener.remove();
+      }
+      if (responseListener) {
+        responseListener.remove();
+      }
     };
   } catch (error) {
     console.error('Error initializing notification listeners:', error);

@@ -7,14 +7,13 @@ import {
   Dimensions,
   Image,
 } from 'react-native';
-import { PanGestureHandler, State } from 'react-native-gesture-handler';
+import { PanGestureHandler, State, Gesture } from 'react-native-gesture-handler';
 import { Button, ProgressBar } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
 import { Alert } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
 import { saveFoodPreference } from '../lib/supabase';
 import Animated, {
-  useAnimatedGestureHandler,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
@@ -270,29 +269,32 @@ const FoodTaggingScreen: React.FC = () => {
     }
   };
 
-  const gestureHandler = useAnimatedGestureHandler({
-    onStart: () => {
+  const onGestureEvent = (event: any) => {
+    'worklet';
+    translateX.value = event.nativeEvent.translationX || 0;
+    translateY.value = event.nativeEvent.translationY || 0;
+    rotate.value = (event.nativeEvent.translationX || 0) * 0.1;
+  };
+
+  const onHandlerStateChange = (event: any) => {
+    'worklet';
+    if (event.nativeEvent.state === State.BEGAN) {
       scale.value = withSpring(0.95);
-    },
-    onActive: (event) => {
-      translateX.value = event.translationX;
-      translateY.value = event.translationY;
-      rotate.value = event.translationX * 0.1;
-    },
-    onEnd: (event) => {
+    } else if (event.nativeEvent.state === State.END || event.nativeEvent.state === State.CANCELLED) {
       scale.value = withSpring(1);
-      
-      if (Math.abs(event.translationX) > SWIPE_THRESHOLD) {
-        const direction = event.translationX > 0 ? 'right' : 'left';
-        translateX.value = withSpring(event.translationX > 0 ? width : -width);
+
+      const translationX = event.nativeEvent.translationX || 0;
+      if (Math.abs(translationX) > SWIPE_THRESHOLD) {
+        const direction = translationX > 0 ? 'right' : 'left';
+        translateX.value = withSpring(translationX > 0 ? width : -width);
         runOnJS(handleSwipe)(direction);
       } else {
         translateX.value = withSpring(0);
         translateY.value = withSpring(0);
         rotate.value = withSpring(0);
       }
-    },
-  });
+    }
+  };
 
   const cardStyle = useAnimatedStyle(() => {
     return {
@@ -478,7 +480,10 @@ const FoodTaggingScreen: React.FC = () => {
       </View>
 
       <View style={styles.cardContainer}>
-        <PanGestureHandler onGestureEvent={gestureHandler}>
+        <PanGestureHandler
+          onGestureEvent={onGestureEvent}
+          onHandlerStateChange={onHandlerStateChange}
+        >
           <Animated.View style={[styles.card, cardStyle]}>
             <View style={styles.cardContent}>
               <Text style={styles.cardEmoji}>{currentCard.image}</Text>
