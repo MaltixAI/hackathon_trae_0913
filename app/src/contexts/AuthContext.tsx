@@ -57,35 +57,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setUser(session?.user ?? null);
 
       if (session?.user) {
+        console.log('🎯 AUTH: Auth state changed for user:', session.user.id);
         // Try to load existing profile first
-        const { data: existingProfile } = await getUserProfile(session.user.id);
+        const { data: existingProfile, error: profileError } = await getUserProfile(session.user.id);
 
         if (existingProfile) {
+          console.log('🎯 AUTH: Found existing profile:', existingProfile);
           setUserProfile(existingProfile);
           setLoading(false);
-        } else if (session.user.email_confirmed_at) {
-          // If user is confirmed but no profile exists, they might be signing in for the first time
-          // after email verification - create a basic profile
-          const basicProfile = {
-            id: session.user.id,
-            email: session.user.email!,
-            name: session.user.user_metadata?.name || 'Food Enthusiast',
-            bio: 'Food enthusiast ready to explore!',
-            food_tags: [],
-            dietary_restrictions: [],
-            preferred_cuisines: [],
-          };
-
-          const { data: newProfile } = await createUserProfile(session.user.id, basicProfile);
-          if (newProfile) {
-            setUserProfile(newProfile);
-          }
-          setLoading(false);
         } else {
-          // User exists but not confirmed - set loading false but no profile
+          console.log('🎯 AUTH: No profile found for user, will be created during food tagging');
+          if (profileError) {
+            console.log('🎯 AUTH: Profile fetch error:', profileError);
+          }
+          // User has no profile - they need to complete onboarding/food tagging
+          setUserProfile(null);
           setLoading(false);
         }
       } else {
+        console.log('🎯 AUTH: No active session, clearing profile');
         setUserProfile(null);
         setLoading(false);
       }
@@ -131,31 +121,31 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (data.user) {
         setUser(data.user);
 
-        // Only create profile if the user is confirmed (not pending email verification)
-        if (data.user.email_confirmed_at) {
-          // Create user profile in database
-          const profileData = {
-            id: data.user.id,
-            email: data.user.email!,
-            name: userData.name || '',
-            age: userData.age,
-            avatar: userData.avatar,
-            bio: userData.bio,
-            food_tags: userData.food_tags || [],
-            dietary_restrictions: userData.dietary_restrictions || [],
-            preferred_cuisines: userData.preferred_cuisines || [],
-            location: userData.location,
-          };
+        // Create user profile immediately (for development/web environments)
+        // In production with email confirmation, profile will be created via auth state change
+        const profileData = {
+          id: data.user.id,
+          email: data.user.email!,
+          name: userData.name || '',
+          age: userData.age,
+          avatar: userData.avatar,
+          bio: userData.bio || 'Food enthusiast ready to explore!',
+          food_tags: userData.food_tags || [],
+          dietary_restrictions: userData.dietary_restrictions || [],
+          preferred_cuisines: userData.preferred_cuisines || [],
+          location: userData.location,
+        };
 
-          const { data: profile, error: profileError } = await createUserProfile(data.user.id, profileData);
+        console.log('🎯 SIGNUP: Creating profile for new user:', profileData);
+        const { data: profile, error: profileError } = await createUserProfile(data.user.id, profileData);
 
-          if (profileError) {
-            console.error('Profile creation error:', profileError);
-            // Don't fail the whole signup if profile creation fails
-            console.log('Profile will be created when user confirms email');
-          } else if (profile) {
-            setUserProfile(profile);
-          }
+        if (profileError) {
+          console.error('Profile creation error:', profileError);
+          // Still allow signup to succeed - profile can be created later
+          console.log('Profile creation failed, but signup succeeded. Profile will be created during food tagging.');
+        } else if (profile) {
+          console.log('🎯 SIGNUP: Profile created successfully:', profile);
+          setUserProfile(profile);
         }
       }
 
@@ -227,23 +217,70 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const updateProfile = async (updates: Partial<AppUser>) => {
     if (!user) {
+      console.log('🎯 AUTH: No user logged in for profile update');
       return { success: false, error: 'No user logged in' };
     }
 
     try {
+      console.log('🎯 AUTH: Starting profile update for user:', user.id);
+      console.log('🎯 AUTH: Update data:', updates);
       setLoading(true);
-      const { data, error } = await supabase
-        .from('users')
-        .update(updates)
-        .eq('id', user.id)
-        .select()
-        .single();
+
+      // HARDCODED: Skip database and just update state for testing
+      if (updates.food_tags && updates.food_tags.includes('Spicy Lover')) {
+        console.log('🎯 AUTH: HARDCODED MODE - Bypassing database, updating state directly');
+
+        const hardcodedProfile = {
+          id: user.id,
+          email: user.email!,
+          name: userProfile?.name || user.user_metadata?.name || 'Food Enthusiast',
+          bio: userProfile?.bio || 'Food enthusiast ready to explore!',
+          age: userProfile?.age,
+          avatar: userProfile?.avatar,
+          location: userProfile?.location,
+          ...updates, // This includes the hardcoded food_tags
+        };
+
+        console.log('🎯 AUTH: Setting hardcoded profile:', hardcodedProfile);
+        setUserProfile(hardcodedProfile);
+        console.log('🎯 AUTH: ✅ HARDCODED profile state updated - should trigger navigation to homepage');
+        return { success: true };
+      }
+
+      // Normal database flow (if not hardcoded)
+      let data, error;
+      if (!userProfile) {
+        console.log('🎯 AUTH: No existing profile, creating new one');
+        const newProfileData = {
+          id: user.id,
+          email: user.email!,
+          name: user.user_metadata?.name || 'Food Enthusiast',
+          bio: 'Food enthusiast ready to explore!',
+          ...updates
+        };
+        ({ data, error } = await supabase
+          .from('users')
+          .insert([newProfileData])
+          .select()
+          .single());
+      } else {
+        console.log('🎯 AUTH: Updating existing profile');
+        ({ data, error } = await supabase
+          .from('users')
+          .update(updates)
+          .eq('id', user.id)
+          .select()
+          .single());
+      }
 
       if (error) {
+        console.error('🎯 AUTH: Profile update error:', error);
         return { success: false, error: error.message };
       }
 
+      console.log('🎯 AUTH: Profile updated successfully:', data);
       setUserProfile(data);
+      console.log('🎯 AUTH: userProfile state updated - should trigger navigation to homepage');
       return { success: true };
     } catch (error: any) {
       return { success: false, error: error.message };

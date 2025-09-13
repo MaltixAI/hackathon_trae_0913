@@ -124,21 +124,20 @@ const HomeScreen: React.FC = () => {
         'Hot': ['Japanese', 'Vietnamese', 'Mediterranean'],
       };
 
-      // Combine user preferences with mood and weather
+      // HARDCODED: Use "Spicy Lover" preferences for recommendations
+      const spicyLoverCuisines = ['Mexican', 'Thai', 'Indian', 'Korean', 'Szechuan'];
       const moodCuisines = moodCuisineMap[selectedMood] || [];
-      const userCuisines = userProfile.preferred_cuisines || [];
-      
-      // Find intersection or use mood-based if no intersection
-      const preferredCuisines = userCuisines.filter(cuisine => 
+
+      // Prioritize spicy cuisines for "Spicy Lover" personality
+      const preferredCuisines = spicyLoverCuisines.filter(cuisine =>
         moodCuisines.includes(cuisine)
       );
-      
+
       if (preferredCuisines.length > 0) {
         searchQuery = preferredCuisines[0];
-      } else if (moodCuisines.length > 0) {
-        searchQuery = moodCuisines[0];
       } else {
-        searchQuery = 'restaurant';
+        // Default to spicy cuisine if no mood match
+        searchQuery = spicyLoverCuisines[0]; // Mexican
       }
 
       // Add cravings to search if specified

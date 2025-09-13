@@ -92,17 +92,21 @@ const AuthStack = () => {
 const AppNavigator = () => {
   const { user, userProfile, loading } = useAuth();
 
+  console.log('🎯 NAV: AppNavigator - user:', !!user, 'userProfile:', !!userProfile, 'food_tags:', userProfile?.food_tags?.length || 0, 'loading:', loading);
+
   if (loading) {
     return <LoadingScreen />;
   }
 
-  // If user is authenticated and has completed onboarding (has profile)
-  if (user && userProfile) {
+  // If user is authenticated and has completed food tagging, go to homepage
+  if (user && userProfile && userProfile.food_tags && userProfile.food_tags.length > 0) {
+    console.log('🎯 NAV: ✅ Going to MainTabs (Homepage) - Food tagging completed');
     return <MainTabs />;
   }
 
-  // If user is authenticated but hasn't completed onboarding
-  if (user && !userProfile) {
+  // If user is authenticated but needs to complete food tagging
+  if (user) {
+    console.log('🎯 NAV: ⚠️ Going to FoodTagging - User needs to complete 10 swipes');
     return (
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         <Stack.Screen name="FoodTagging" component={FoodTaggingScreen} />
@@ -111,6 +115,7 @@ const AppNavigator = () => {
   }
 
   // User is not authenticated
+  console.log('Navigation: Going to AuthStack');
   return <AuthStack />;
 };
 

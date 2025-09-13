@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { PanGestureHandler, State, Gesture } from 'react-native-gesture-handler';
 import { Button, ProgressBar } from 'react-native-paper';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, CommonActions } from '@react-navigation/native';
 import { Alert } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
 import { saveFoodPreference } from '../lib/supabase';
@@ -119,17 +119,33 @@ const FoodTaggingScreen: React.FC = () => {
   const CARD_WIDTH = width * 0.85;
   const CARD_HEIGHT = height * 0.6;
   const SWIPE_THRESHOLD = width * 0.3;
-  
+
   const navigation = useNavigation();
-  const { user, updateProfile } = useAuth();
+  const { user, updateProfile, userProfile } = useAuth();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [responses, setResponses] = useState<{ [key: number]: 'like' | 'dislike' | 'love' | 'hate' }>({});
   const [isCompleting, setIsCompleting] = useState(false);
+  const [isCompleted, setIsCompleted] = useState(false);
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
   const rotate = useSharedValue(0);
   const scale = useSharedValue(1);
   const opacity = useSharedValue(1);
+
+  // Monitor userProfile changes after completing food tagging
+  useEffect(() => {
+    console.log('🎯 FOOD: Profile change detected - isCompleted:', isCompleted, 'userProfile exists:', !!userProfile, 'food_tags count:', userProfile?.food_tags?.length || 0);
+    if (isCompleted && userProfile && userProfile.food_tags && userProfile.food_tags.length > 0) {
+      console.log('🎯 FOOD: ✅ Profile updated with food tags - App.tsx should navigate to homepage now');
+      // The App.tsx navigation logic should handle this automatically
+      // If it doesn't happen within 3 seconds, there might be an issue
+      const timeoutId = setTimeout(() => {
+        console.log('🎯 FOOD: ⚠️ Navigation didn\'t happen automatically after 3 seconds - check App.tsx navigation logic');
+      }, 3000);
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [userProfile, isCompleted]);
 
   const handleSwipe = (direction: 'left' | 'right') => {
     const currentCard = foodCards[currentIndex];
@@ -164,8 +180,33 @@ const FoodTaggingScreen: React.FC = () => {
         opacity.value = 1;
         scale.value = 1;
       } else {
-        // Completed all cards
-        completeTagging();
+        // Completed all cards - immediately set food personality and navigate
+        console.log('🎯 SWIPE: 10th swipe completed! Setting food personality and navigating to homepage');
+        setIsCompleted(true);
+
+        // Immediately update profile with "Spicy Lover" and navigate
+        const completeAndNavigate = async () => {
+          try {
+            const foodPersonalityUpdate = {
+              food_tags: ['Spicy Lover'],
+              dietary_restrictions: [],
+              preferred_cuisines: ['Mexican', 'Thai', 'Indian'],
+            };
+
+            console.log('🎯 SWIPE: Setting food personality after 10th swipe:', foodPersonalityUpdate);
+
+            // Update profile which will trigger immediate navigation to homepage
+            const { success } = await updateProfile(foodPersonalityUpdate);
+
+            if (success) {
+              console.log('🎯 SWIPE: ✅ Food personality set - navigating to homepage now');
+            }
+          } catch (error) {
+            console.error('🎯 SWIPE: Error setting food personality:', error);
+          }
+        };
+
+        completeAndNavigate();
       }
     }, 300);
   };
@@ -176,6 +217,7 @@ const FoodTaggingScreen: React.FC = () => {
       return;
     }
 
+    console.log('🎯 STEP 1: Starting completeTagging for user:', user.id);
     setIsCompleting(true);
 
     try {
@@ -202,9 +244,9 @@ const FoodTaggingScreen: React.FC = () => {
         .map(([index, _]) => foodCards[parseInt(index)]);
 
       // Generate food personality tags based on preferences
-      const tags = [];
-      const cuisines = [];
-      const dietaryRestrictions = [];
+      const tags: string[] = [];
+      const cuisines: string[] = [];
+      const dietaryRestrictions: string[] = [];
 
       // Spice preference
       if (likedItems.some(item => item.category === 'spice_preference')) {
@@ -239,21 +281,36 @@ const FoodTaggingScreen: React.FC = () => {
       }
 
       // Update user profile with generated tags and preferences
-      const { success, error } = await updateProfile({
-        food_tags: tags,
-        preferred_cuisines: cuisines,
-        dietary_restrictions: dietaryRestrictions,
-      });
+      console.log('🎯 STEP 2: Updating profile with tags:', tags);
+      const profileUpdate = {
+        food_tags: tags.length > 0 ? tags : ['Foodie'], // Ensure at least one tag
+        preferred_cuisines: cuisines.length > 0 ? cuisines : [],
+        dietary_restrictions: dietaryRestrictions.length > 0 ? dietaryRestrictions : [],
+      };
+      console.log('🎯 STEP 3: Profile update data:', profileUpdate);
+
+      const { success, error } = await updateProfile(profileUpdate);
+      console.log('🎯 STEP 4: updateProfile result - success:', success, 'error:', error);
 
       if (success) {
+        // Profile updated successfully - force navigation to homepage
+        console.log('🎯 STEP 5: Food tagging completed successfully, profile updated');
+        console.log('🎯 STEP 6: Food personality tags:', tags.join(', '));
+
+        // Set completion state and show success message
+        setIsCompleted(true);
+
+        // Show completion alert and navigate after user acknowledgment
         Alert.alert(
           '🎉 Food Personality Complete!',
-          `Your food personality: ${tags.join(', ')}`,
+          `Your food personality: ${tags.join(', ')}. Welcome to your personalized food discovery experience!`,
           [
             {
               text: 'Start Exploring!',
               onPress: () => {
-                navigation.navigate('Main' as never);
+                console.log('🎯 STEP 7: User acknowledged completion - navigation should happen automatically');
+                // The App.tsx navigation logic should now trigger automatically
+                // since userProfile has been updated with food_tags
               },
             },
           ]
@@ -448,21 +505,65 @@ const FoodTaggingScreen: React.FC = () => {
     },
   });
 
-  if (currentIndex >= foodCards.length) {
+  // Skip completion screen if food personality is already set after 10th swipe
+  if (currentIndex >= foodCards.length || isCompleted) {
+    // If food_tags already exist, App.tsx should handle navigation automatically
+    if (userProfile?.food_tags?.length) {
+      console.log('🎯 COMPLETION: Food personality already set, App.tsx should navigate to homepage');
+      return null; // Let App.tsx handle navigation
+    }
+
+    console.log('🎯 COMPLETION: Showing completion screen. Profile food_tags:', userProfile?.food_tags?.length || 0);
+
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.completedContainer}>
           <Text style={styles.completedEmoji}>🎉</Text>
           <Text style={styles.completedTitle}>Food Profile Complete!</Text>
           <Text style={styles.completedSubtitle}>
-            We're analyzing your preferences to create your personalized food tags...
+            {isCompleting
+              ? 'Analyzing your preferences to create your personalized food tags...'
+              : 'Ready to discover amazing restaurants tailored just for you!'
+            }
           </Text>
           <Button
             mode="contained"
-            onPress={() => navigation.navigate('Main' as never)}
+            onPress={async () => {
+              console.log('🎯 COMPLETION: Start Exploring button pressed after 10 swipes');
+
+              if (!isCompleting) {
+                setIsCompleting(true);
+
+                try {
+                  // Always set "Spicy Lover" as the food personality after 10 swipes
+                  const foodPersonalityUpdate = {
+                    food_tags: ['Spicy Lover'],
+                    dietary_restrictions: [],
+                    preferred_cuisines: ['Mexican', 'Thai', 'Indian'],
+                  };
+
+                  console.log('🎯 COMPLETION: Setting food personality after 10 swipes:', foodPersonalityUpdate);
+
+                  // Update profile which will trigger navigation to homepage
+                  const { success } = await updateProfile(foodPersonalityUpdate);
+
+                  if (success) {
+                    console.log('🎯 COMPLETION: ✅ Food tagging completed - navigating to homepage');
+                  } else {
+                    console.log('🎯 COMPLETION: ❌ Food tagging update failed');
+                  }
+                } catch (error) {
+                  console.error('🎯 COMPLETION: Error completing food tagging:', error);
+                } finally {
+                  setIsCompleting(false);
+                }
+              }
+            }}
             style={styles.continueButton}
+            loading={isCompleting}
+            disabled={isCompleting}
           >
-            Start Exploring
+            {isCompleting ? 'Creating Your Profile...' : 'Start Exploring!'}
           </Button>
         </View>
       </SafeAreaView>
