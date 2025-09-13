@@ -40,8 +40,8 @@ const LoadingScreen = () => (
 const MainTabs = () => {
   return (
     <Tab.Navigator
-      screenOptions={({ route }) => ({
-        tabBarIcon: ({ focused, color, size }) => {
+      screenOptions={({ route }: { route: { name: string } }) => ({
+        tabBarIcon: ({ focused, color, size }: { focused: boolean; color: string; size: number }) => {
           let iconName: keyof typeof Ionicons.glyphMap;
 
           if (route.name === 'Home') {
@@ -150,7 +150,7 @@ export default function App() {
       cleanup = initNotifications();
     } catch (error) {
       console.error('Failed to initialize notifications:', error);
-      cleanup = Promise.resolve(() => {});
+      cleanup = new Promise<() => void>(resolve => resolve(() => {}));
     }
     
     return () => {

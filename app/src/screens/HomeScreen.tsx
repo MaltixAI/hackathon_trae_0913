@@ -9,6 +9,7 @@ import {
   Alert,
   Dimensions,
 } from 'react-native';
+import * as Location from 'expo-location';
 import { Button, Card, TextInput, Switch, Chip, ActivityIndicator } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
@@ -21,6 +22,13 @@ interface MoodOption {
   label: string;
   color: string;
 }
+
+const getTimeOfDay = () => {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'morning';
+  if (hour < 17) return 'afternoon';
+  return 'evening';
+};
 
 const moodOptions: MoodOption[] = [
   { id: 'happy', emoji: '😊', label: 'Happy', color: '#F39C12' },
@@ -451,7 +459,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   moodOption: {
-    width: (width - 80) / 3,
+    width: (Dimensions.get('window').width - 80) / 3,
     aspectRatio: 1,
     borderRadius: 12,
     borderWidth: 2,
