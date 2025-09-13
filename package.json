@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "babel-preset-expo": "~10.0.1",
+    "react-native-worklets": "^0.5.1"
+  }
+}

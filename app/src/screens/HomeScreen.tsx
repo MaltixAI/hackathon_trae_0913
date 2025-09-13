@@ -436,8 +436,8 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   moodOption: {
-    width: (Dimensions.get('window').width - 80) / 3,
-    aspectRatio: 1,
+    width: (Dimensions.get('window').width - 100) / 3,
+    height: 80,
     borderRadius: 12,
     borderWidth: 2,
     borderColor: colors.border,
@@ -446,13 +446,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   moodEmoji: {
-    fontSize: 24,
-    marginBottom: 4,
+    fontSize: 20,
+    marginBottom: 2,
   },
   moodLabel: {
-    fontSize: 12,
+    fontSize: 10,
     color: colors.text,
     textAlign: 'center',
+    fontWeight: '500',
   },
   timeContainer: {
     flexDirection: 'row',

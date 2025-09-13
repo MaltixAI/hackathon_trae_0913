@@ -220,7 +220,7 @@ const DiscoveryScreen: React.FC = () => {
         imageUrl: result.imageUrl,
         description: result.description,
         isSelected: false,
-        tags: result.tags || []
+        tags: []
       }));
 
       setRestaurants(convertedResults.slice(0, 15));
@@ -391,8 +391,20 @@ const DiscoveryScreen: React.FC = () => {
             key={cuisine}
             selected={selectedCuisine === cuisine}
             onPress={() => handleCuisineFilter(cuisine)}
-            style={styles.filterChip}
-            textStyle={styles.filterChipText}
+            style={[
+              styles.filterChip,
+              selectedCuisine === cuisine && {
+                backgroundColor: colors.primary,
+                borderColor: colors.primary,
+              }
+            ]}
+            textStyle={[
+              styles.filterChipText,
+              selectedCuisine === cuisine && {
+                color: '#FFFFFF',
+                fontWeight: '600',
+              }
+            ]}
           >
             {cuisine}
           </Chip>
@@ -546,16 +558,24 @@ const styles = StyleSheet.create({
   },
   filterContainer: {
     marginBottom: 16,
+    maxHeight: 50,
   },
   filterContent: {
     paddingHorizontal: 20,
-    gap: 8,
+    paddingVertical: 8,
+    alignItems: 'center',
   },
   filterChip: {
     backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginRight: 8,
+    height: 36,
+    borderRadius: 18,
   },
   filterChipText: {
     fontSize: 12,
+    fontWeight: '500',
   },
   restaurantList: {
     flex: 1,
@@ -563,11 +583,11 @@ const styles = StyleSheet.create({
   },
   restaurantCard: {
     backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 2,
-    borderColor: 'transparent',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   restaurantCardSelected: {
     borderColor: colors.primary,
@@ -579,32 +599,32 @@ const styles = StyleSheet.create({
   restaurantHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 4,
   },
   restaurantEmoji: {
-    fontSize: 48,
-    marginRight: 16,
+    fontSize: 36,
+    marginRight: 12,
   },
   restaurantImage: {
-    width: 60,
-    height: 60,
-    borderRadius: 8,
-    marginRight: 16,
+    width: 48,
+    height: 48,
+    borderRadius: 6,
+    marginRight: 12,
     backgroundColor: colors.surface,
   },
   restaurantInfo: {
     flex: 1,
   },
   restaurantName: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
     color: colors.text,
-    marginBottom: 2,
+    marginBottom: 1,
   },
   restaurantCuisine: {
-    fontSize: 14,
+    fontSize: 13,
     color: colors.textSecondary,
-    marginBottom: 4,
+    marginBottom: 2,
   },
   restaurantMeta: {
     flexDirection: 'row',
@@ -633,9 +653,10 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   restaurantDescription: {
-    fontSize: 14,
+    fontSize: 13,
     color: colors.textSecondary,
-    lineHeight: 20,
+    lineHeight: 18,
+    marginTop: 2,
   },
   proceedContainer: {
     padding: 20,

@@ -1,0 +1,393 @@
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  SafeAreaView,
+  Dimensions,
+  Alert,
+  TouchableOpacity,
+} from 'react-native';
+import { Button, ProgressBar } from 'react-native-paper';
+import { useNavigation } from '@react-navigation/native';
+import { useAuth } from '../contexts/AuthContext';
+import { colors } from '../theme/theme';
+
+interface FoodCard {
+  id: number;
+  title: string;
+  image: string;
+  leftChoice: string;
+  rightChoice: string;
+  category: string;
+}
+
+// Only keep 10 most important food preference questions
+const foodCards: FoodCard[] = [
+  {
+    id: 1,
+    title: 'Spicy vs Mild',
+    image: '🌶️',
+    leftChoice: 'Love the heat!',
+    rightChoice: 'Keep it mild',
+    category: 'spice_preference',
+  },
+  {
+    id: 2,
+    title: 'Street Food vs Fine Dining',
+    image: '🍜',
+    leftChoice: 'Street food vibes',
+    rightChoice: 'Fine dining experience',
+    category: 'dining_style',
+  },
+  {
+    id: 3,
+    title: 'Sweet vs Savory',
+    image: '🍰',
+    leftChoice: 'Sweet treats',
+    rightChoice: 'Savory delights',
+    category: 'flavor_preference',
+  },
+  {
+    id: 4,
+    title: 'Adventure vs Comfort',
+    image: '🍕',
+    leftChoice: 'Try new cuisines',
+    rightChoice: 'Stick to favorites',
+    category: 'adventure_level',
+  },
+  {
+    id: 5,
+    title: 'Quick Bite vs Long Meal',
+    image: '⏰',
+    leftChoice: 'Quick and easy',
+    rightChoice: 'Take my time',
+    category: 'dining_pace',
+  },
+  {
+    id: 6,
+    title: 'Asian Cuisine',
+    image: '🍱',
+    leftChoice: 'Love it!',
+    rightChoice: 'Not my favorite',
+    category: 'cuisine_asian',
+  },
+  {
+    id: 7,
+    title: 'Mexican Food',
+    image: '🌮',
+    leftChoice: 'Absolutely!',
+    rightChoice: 'Rarely',
+    category: 'cuisine_mexican',
+  },
+  {
+    id: 8,
+    title: 'Italian Classics',
+    image: '🍝',
+    leftChoice: 'Always!',
+    rightChoice: 'Sometimes',
+    category: 'cuisine_italian',
+  },
+  {
+    id: 9,
+    title: 'Healthy vs Indulgent',
+    image: '🥗',
+    leftChoice: 'Health first',
+    rightChoice: 'Treat myself',
+    category: 'health_preference',
+  },
+  {
+    id: 10,
+    title: 'Solo vs Social Dining',
+    image: '👥',
+    leftChoice: 'Love dining alone',
+    rightChoice: 'Better with friends',
+    category: 'social_preference',
+  },
+];
+
+const FoodTaggingScreen: React.FC = () => {
+  const { width } = Dimensions.get('window');
+  const navigation = useNavigation<any>();
+  const { user, updateProfile } = useAuth();
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [responses, setResponses] = useState<{ [key: number]: 'like' | 'dislike' }>({});
+  const [isCompleting, setIsCompleting] = useState(false);
+
+  const handleChoice = async (choice: 'left' | 'right') => {
+    if (isCompleting || currentIndex >= foodCards.length) {
+      return;
+    }
+
+    const currentCard = foodCards[currentIndex];
+    let preference: 'like' | 'dislike';
+    
+    // Determine preference based on choice
+    if (choice === 'right') {
+      preference = 'like';
+    } else {
+      preference = 'dislike';
+    }
+    
+    // Save the response
+    setResponses(prev => ({
+      ...prev,
+      [currentIndex]: preference
+    }));
+
+    // Check if this was the last card
+    if (currentIndex === foodCards.length - 1) {
+      await completeTagging();
+    } else {
+      setCurrentIndex(currentIndex + 1);
+    }
+  };
+
+  const completeTagging = async () => {
+    if (!user) {
+      Alert.alert('Error', 'Please sign in to continue');
+      return;
+    }
+
+    setIsCompleting(true);
+
+    try {
+      // Analyze responses and generate food personality tags
+      const likedItems = Object.entries(responses)
+        .filter(([_, preference]) => preference === 'like')
+        .map(([index, _]) => foodCards[parseInt(index)]);
+
+      // Generate food personality tags based on preferences
+      const tags: string[] = [];
+      const cuisines: string[] = [];
+
+      // Generate tags based on preferences
+      if (likedItems.some(item => item.category === 'spice_preference')) {
+        tags.push('Spice Enthusiast');
+      }
+      if (likedItems.some(item => item.category === 'dining_style' && item.leftChoice === 'Street food vibes')) {
+        tags.push('Street Food Explorer');
+      }
+      if (likedItems.some(item => item.category === 'adventure_level' && item.leftChoice === 'Try new cuisines')) {
+        tags.push('Adventurous Eater');
+      }
+
+      // Add cuisines based on preferences
+      if (likedItems.some(item => item.category === 'cuisine_asian')) {
+        cuisines.push('Asian');
+      }
+      if (likedItems.some(item => item.category === 'cuisine_mexican')) {
+        cuisines.push('Mexican');
+      }
+      if (likedItems.some(item => item.category === 'cuisine_italian')) {
+        cuisines.push('Italian');
+      }
+
+      // Update user profile with generated tags and preferences
+      const { success, error: updateError } = await updateProfile({
+        food_tags: tags,
+        preferred_cuisines: cuisines,
+        onboarding_completed: true,
+      });
+
+      if (success) {
+        Alert.alert(
+          '🎉 Food Personality Complete!',
+          'Your food personality has been created! Let\'s start finding food recommendations for you.',
+          [
+            {
+              text: 'Continue',
+              onPress: () => navigation.reset({
+                index: 0,
+                routes: [{ name: 'Home' }],
+              }),
+            },
+          ],
+        );
+      } else {
+        throw new Error(updateError || 'Failed to save preferences');
+      }
+    } catch (error) {
+      console.error('Error completing food tagging:', error);
+      Alert.alert('Error', 'Failed to save your preferences. Please try again.');
+    } finally {
+      setIsCompleting(false);
+    }
+  };
+
+  const renderCompletionScreen = () => (
+    <SafeAreaView style={styles.container}>
+      <View style={styles.completedContainer}>
+        <Text style={styles.completedEmoji}>🎉</Text>
+        <Text style={styles.completedTitle}>Food Profile Complete!</Text>
+        <Text style={styles.completedSubtitle}>
+          {isCompleting 
+            ? "We're analyzing your preferences to create your personalized food tags..."
+            : "Your food personality profile is ready!"}
+        </Text>
+      </View>
+    </SafeAreaView>
+  );
+
+  const renderCard = () => {
+    const currentCard = foodCards[currentIndex];
+
+    return (
+      <View style={styles.card}>
+        <View style={styles.cardContent}>
+          <Text style={styles.cardEmoji}>{currentCard.image}</Text>
+          <Text style={styles.cardTitle}>{currentCard.title}</Text>
+          
+          <View style={styles.choicesContainer}>
+            <TouchableOpacity 
+              style={styles.choiceButton} 
+              onPress={() => handleChoice('left')}
+            >
+              <Text style={styles.choiceText}>{currentCard.leftChoice}</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.choiceButton}
+              onPress={() => handleChoice('right')}
+            >
+              <Text style={styles.choiceText}>{currentCard.rightChoice}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    );
+  };
+
+  // Show completion screen if all cards are done
+  if (currentIndex >= foodCards.length) {
+    return renderCompletionScreen();
+  }
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.title}>Discover Your Food Personality</Text>
+        <ProgressBar 
+          progress={(currentIndex + 1) / foodCards.length} 
+          color={colors.primary} 
+          style={styles.progressBar} 
+        />
+        <Text style={styles.progressText}>
+          {currentIndex + 1} of {foodCards.length}
+        </Text>
+      </View>
+
+      <View style={styles.cardContainer}>
+        {renderCard()}
+      </View>
+    </SafeAreaView>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  header: {
+    paddingHorizontal: 24,
+    paddingTop: 20,
+    paddingBottom: 32,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: colors.text,
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  progressBar: {
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.border,
+  },
+  progressText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginTop: 8,
+  },
+  cardContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  card: {
+    width: '100%',
+    aspectRatio: 3/4,
+    backgroundColor: colors.surface,
+    borderRadius: 20,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+  },
+  cardContent: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  cardEmoji: {
+    fontSize: 64,
+    marginBottom: 24,
+  },
+  cardTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: colors.text,
+    textAlign: 'center',
+    marginBottom: 32,
+  },
+  choicesContainer: {
+    width: '100%',
+    flexDirection: 'column',
+    gap: 16,
+  },
+  choiceButton: {
+    padding: 16,
+    borderRadius: 12,
+    backgroundColor: colors.primary + '20',
+    alignItems: 'center',
+  },
+  choiceText: {
+    fontSize: 16,
+    color: colors.text,
+    fontWeight: '600',
+  },
+  completedContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 32,
+  },
+  completedEmoji: {
+    fontSize: 100,
+    marginBottom: 32,
+  },
+  completedTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: colors.text,
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  completedSubtitle: {
+    fontSize: 16,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 24,
+  },
+});
+
+export default FoodTaggingScreen;

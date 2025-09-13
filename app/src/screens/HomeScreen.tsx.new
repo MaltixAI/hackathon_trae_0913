@@ -1,0 +1,227 @@
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  SafeAreaView,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+  Dimensions,
+} from 'react-native';
+import * as Location from 'expo-location';
+import { TextInput, ActivityIndicator } from 'react-native-paper';
+import { useAuth } from '../contexts/AuthContext';
+import { colors } from '../theme/theme';
+
+interface Message {
+  id: string;
+  text: string;
+  sender: 'user' | 'bot';
+  timestamp: Date;
+}
+
+interface WeatherInfo {
+  temperature: number;
+  condition: string;
+  humidity: number;
+  time: string;
+}
+
+const getTimeOfDay = () => {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'morning';
+  if (hour < 17) return 'afternoon';
+  return 'evening';
+};
+
+const HomeScreen: React.FC = () => {
+  const { user, userProfile } = useAuth();
+  const [location, setLocation] = useState<string>('');
+  const [weather, setWeather] = useState<WeatherInfo | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [inputMessage, setInputMessage] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    getCurrentLocation();
+    // Initial greeting
+    const timeOfDay = getTimeOfDay();
+    const initialMessage = {
+      id: Date.now().toString(),
+      text: `Good ${timeOfDay}! I'm your Food AI assistant. I can help you find the perfect meal based on your location, the weather, and your preferences.`,
+      sender: 'bot',
+      timestamp: new Date(),
+    };
+    setMessages([initialMessage]);
+  }, []);
+
+  const getCurrentLocation = async () => {
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        setLocation('Location access denied');
+        return;
+      }
+
+      const location = await Location.getCurrentPositionAsync({});
+      // For demo, using mock data
+      setLocation('San Francisco, CA');
+      setWeather({
+        temperature: 72,
+        condition: 'Sunny',
+        humidity: 65,
+        time: new Date().toLocaleTimeString(),
+      });
+    } catch (error) {
+      console.log('Error getting location:', error);
+      setLocation('Error getting location');
+    }
+  };
+
+  const handleSendMessage = () => {
+    if (!inputMessage.trim() || isLoading) return;
+
+    const newMessage: Message = {
+      id: Date.now().toString(),
+      text: inputMessage.trim(),
+      sender: 'user',
+      timestamp: new Date(),
+    };
+
+    setMessages(prev => [...prev, newMessage]);
+    setInputMessage('');
+    setIsLoading(true);
+
+    // TODO: Implement AI response handling
+    setTimeout(() => {
+      const botResponse: Message = {
+        id: Date.now().toString(),
+        text: 'Based on the weather and your preferences, I think you might enjoy...',
+        sender: 'bot',
+        timestamp: new Date(),
+      };
+      setMessages(prev => [...prev, botResponse]);
+      setIsLoading(false);
+    }, 1500);
+  };
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.container}
+      >
+        <View style={styles.header}>
+          <Text style={styles.headerText}>
+            🌤️ {location}
+          </Text>
+          {weather && (
+            <Text style={styles.weatherText}>
+              {weather.temperature}°F • {weather.condition}
+            </Text>
+          )}
+        </View>
+
+        <ScrollView style={styles.chatContainer}>
+          {messages.map((message) => (
+            <View 
+              key={message.id} 
+              style={[
+                styles.messageContainer,
+                message.sender === 'user' ? styles.userMessage : styles.botMessage,
+              ]}
+            >
+              <Text style={[
+                styles.messageText,
+                message.sender === 'user' && { color: colors.surface }
+              ]}>{message.text}</Text>
+            </View>
+          ))}
+          {isLoading && (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator color={colors.primary} />
+            </View>
+          )}
+        </ScrollView>
+
+        <View style={styles.inputContainer}>
+          <TextInput
+            value={inputMessage}
+            onChangeText={setInputMessage}
+            placeholder="Ask me about food recommendations..."
+            style={styles.input}
+            mode="outlined"
+            right={
+              <TextInput.Icon 
+                icon="send"
+                onPress={handleSendMessage}
+                disabled={!inputMessage.trim() || isLoading}
+              />
+            }
+          />
+        </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  header: {
+    padding: 16,
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  headerText: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  weatherText: {
+    fontSize: 16,
+    color: colors.textSecondary,
+    marginTop: 4,
+  },
+  chatContainer: {
+    flex: 1,
+    padding: 16,
+  },
+  messageContainer: {
+    maxWidth: '80%',
+    padding: 12,
+    borderRadius: 16,
+    marginBottom: 12,
+  },
+  userMessage: {
+    alignSelf: 'flex-end',
+    backgroundColor: colors.primary,
+  },
+  botMessage: {
+    alignSelf: 'flex-start',
+    backgroundColor: colors.surface,
+  },
+  messageText: {
+    color: colors.text,
+    fontSize: 16,
+  },
+  loadingContainer: {
+    padding: 16,
+    alignItems: 'center',
+  },
+  inputContainer: {
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  input: {
+    backgroundColor: colors.background,
+  },
+});
+
+export default HomeScreen;
