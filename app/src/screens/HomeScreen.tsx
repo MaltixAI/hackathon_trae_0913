@@ -89,102 +89,62 @@ const HomeScreen: React.FC = () => {
     );
   };
 
-  const handleGenerateRecommendations = async () => {
-    if (!selectedMood) {
-      Alert.alert('Mood Required', 'Please select your current mood first!');
-      return;
-    }
+  const handleGenerateRecommendations = () => {
+    console.log('🔥 BUTTON CLICKED: Showing fixed spicy restaurants immediately');
 
-    if (!user || !userProfile) {
-      Alert.alert('Error', 'Please sign in to get personalized recommendations');
-      return;
-    }
-
-    setIsGenerating(true);
-
-    try {
-      // Generate search query based on mood, cravings, and user preferences
-      let searchQuery = '';
-      
-      // Mood-based cuisine mapping
-      const moodCuisineMap: { [key: string]: string[] } = {
-        'happy': ['Italian', 'Mexican', 'Thai'],
-        'stressed': ['Comfort Food', 'American', 'Chinese'],
-        'adventurous': ['Fusion', 'Ethiopian', 'Korean'],
-        'celebratory': ['French', 'Italian', 'Mediterranean'],
-        'tired': ['Japanese', 'Vietnamese', 'Comfort Food'],
-        'cozy': ['Italian', 'American', 'Chinese'],
-      };
-
-      // Weather-based suggestions
-      const weatherCuisineMap: { [key: string]: string[] } = {
-        'Sunny': ['Mediterranean', 'Mexican', 'Thai'],
-        'Rainy': ['Comfort Food', 'Chinese', 'Italian'],
-        'Cold': ['Indian', 'Korean', 'American'],
-        'Hot': ['Japanese', 'Vietnamese', 'Mediterranean'],
-      };
-
-      // HARDCODED: Use "Spicy Lover" preferences for recommendations
-      const spicyLoverCuisines = ['Mexican', 'Thai', 'Indian', 'Korean', 'Szechuan'];
-      const moodCuisines = moodCuisineMap[selectedMood] || [];
-
-      // Prioritize spicy cuisines for "Spicy Lover" personality
-      const preferredCuisines = spicyLoverCuisines.filter(cuisine =>
-        moodCuisines.includes(cuisine)
-      );
-
-      if (preferredCuisines.length > 0) {
-        searchQuery = preferredCuisines[0];
-      } else {
-        // Default to spicy cuisine if no mood match
-        searchQuery = spicyLoverCuisines[0]; // Mexican
+    // HARDCODED: Fixed set of spicy restaurants - NO CONDITIONS, NO LOGIC
+    const hardcodedRestaurants = [
+      {
+        id: '1',
+        name: 'Spice Palace',
+        cuisine: 'Indian',
+        rating: 4.8,
+        price_range: '$$',
+        address: '123 Curry Street, San Francisco',
+        description: 'Authentic Indian spices and fiery curries'
+      },
+      {
+        id: '2',
+        name: 'Dragon Fire Thai',
+        cuisine: 'Thai',
+        rating: 4.7,
+        price_range: '$$$',
+        address: '456 Bangkok Ave, San Francisco',
+        description: 'Traditional Thai dishes with extra heat'
+      },
+      {
+        id: '3',
+        name: 'El Fuego Mexican Grill',
+        cuisine: 'Mexican',
+        rating: 4.6,
+        price_range: '$$',
+        address: '789 Jalapeño Blvd, San Francisco',
+        description: 'Sizzling Mexican flavors and ghost pepper specials'
+      },
+      {
+        id: '4',
+        name: 'Seoul Burn Korean BBQ',
+        cuisine: 'Korean',
+        rating: 4.9,
+        price_range: '$$$',
+        address: '321 Kimchi Lane, San Francisco',
+        description: 'Korean BBQ with volcanic sauces and spicy banchan'
+      },
+      {
+        id: '5',
+        name: 'Szechuan Fire House',
+        cuisine: 'Chinese',
+        rating: 4.5,
+        price_range: '$$',
+        address: '654 Peppercorn Road, San Francisco',
+        description: 'Authentic Szechuan cuisine with numbing spices'
       }
+    ];
 
-      // Add cravings to search if specified
-      if (selectedCravings.length > 0) {
-        searchQuery += ` ${selectedCravings.join(' ')}`;
-      }
+    // Immediately show the restaurants - NO CONDITIONS
+    setRecommendations(hardcodedRestaurants);
 
-      // Add food thoughts to search if specified
-      if (foodThoughts.trim()) {
-        searchQuery += ` ${foodThoughts.trim()}`;
-      }
-
-      // Search restaurants
-      const { data: restaurants, error } = await searchRestaurants(searchQuery);
-      
-      if (error) {
-        throw new Error(error.message);
-      }
-
-      if (restaurants && restaurants.length > 0) {
-        setRecommendations(restaurants.slice(0, 5)); // Top 5 recommendations
-        Alert.alert(
-          '🤖 AI Recommendations Ready!',
-          `Found ${restaurants.length} restaurants perfect for your ${selectedMood} mood!`,
-          [
-            {
-              text: 'View All',
-              onPress: () => console.log('Navigate to Discovery with recommendations'),
-            },
-            { text: 'OK', style: 'cancel' },
-          ]
-        );
-      } else {
-        Alert.alert(
-          'No Results',
-          'No restaurants found matching your preferences. Try adjusting your mood or cravings!'
-        );
-      }
-    } catch (error) {
-      console.error('Error generating recommendations:', error);
-      Alert.alert(
-        'Error',
-        'Failed to generate recommendations. Please try again later.'
-      );
-    } finally {
-      setIsGenerating(false);
-    }
+    console.log('🔥 RESTAURANTS: Fixed spicy restaurants displayed');
   };
 
   const toggleAvailability = () => {
@@ -384,11 +344,29 @@ const HomeScreen: React.FC = () => {
           onPress={handleGenerateRecommendations}
           style={styles.generateButton}
           contentStyle={styles.generateButtonContent}
-          disabled={!selectedMood || isGenerating}
-          loading={isGenerating}
         >
-          {isGenerating ? 'Finding Restaurants...' : '🍽️ Find Perfect Restaurants'}
+          🔥 Find Perfect Spicy Restaurants
         </Button>
+
+        {/* Restaurant Recommendations Display */}
+        {recommendations.length > 0 && (
+          <View style={styles.recommendationsSection}>
+            <Text style={styles.recommendationsTitle}>🔥 Spicy Restaurants for You</Text>
+            {recommendations.map((restaurant, index) => (
+              <Card key={restaurant.id} style={styles.restaurantCard}>
+                <Card.Content>
+                  <View style={styles.restaurantHeader}>
+                    <Text style={styles.restaurantName}>{restaurant.name}</Text>
+                    <Text style={styles.restaurantRating}>⭐ {restaurant.rating}</Text>
+                  </View>
+                  <Text style={styles.restaurantCuisine}>{restaurant.cuisine} • {restaurant.price_range}</Text>
+                  <Text style={styles.restaurantAddress}>{restaurant.address}</Text>
+                  <Text style={styles.restaurantDescription}>{restaurant.description}</Text>
+                </Card.Content>
+              </Card>
+            ))}
+          </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -594,6 +572,54 @@ const styles = StyleSheet.create({
   userTagText: {
     fontSize: 11,
     color: colors.primary,
+  },
+  recommendationsSection: {
+    paddingHorizontal: 20,
+    paddingBottom: 32,
+  },
+  recommendationsTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: colors.text,
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  restaurantCard: {
+    marginBottom: 12,
+    backgroundColor: colors.surface,
+    elevation: 2,
+  },
+  restaurantHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  restaurantName: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: colors.text,
+    flex: 1,
+  },
+  restaurantRating: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  restaurantCuisine: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginBottom: 4,
+  },
+  restaurantAddress: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginBottom: 6,
+  },
+  restaurantDescription: {
+    fontSize: 14,
+    color: colors.text,
+    fontStyle: 'italic',
   },
 });
 
